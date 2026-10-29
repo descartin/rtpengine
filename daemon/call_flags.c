@@ -1131,6 +1131,7 @@ void call_ng_flags_init(sdp_ng_flags *out, enum ng_opmode opmode) {
 	out->dtls_passive = dtls_passive_def;
 	out->el_option = rtpe_config.endpoint_learning;
 	out->tos = 256;
+	out->telephone_event_payload = -1;
 	out->delay_buffer = -1;
 	out->delete_delay = -1;
 	out->volume = 9999;
@@ -1157,6 +1158,21 @@ static const char *call_ng_direction_flag(const ng_parser_t *parser, sdp_ng_flag
 }
 const char *call_ng_codec_flags(const ng_parser_t *parser, str *key, parser_arg value, helper_arg arg) {
 	sdp_ng_flags *out = arg.flags;
+	if (!str_cmp(key, "telephone-event-payload")) {
+#ifndef WITH_TRANSCODING
+		return "telephone-event-payload requires transcoding support";
+#else
+		if (out->opmode != OP_OFFER)
+			return "telephone-event-payload is only supported in offers";
+		if (!parser->is_int(value))
+			return "telephone-event-payload must be an integer from 96 to 127";
+		long long pt = parser->get_int(value);
+		if (pt < 96 || pt > 127)
+			return "telephone-event-payload must be an integer from 96 to 127";
+		out->telephone_event_payload = pt;
+		return NULL;
+#endif
+	}
 	switch (__csh_lookup(key)) {
 		case CSH_LOOKUP("except"):
 			return call_ng_flags_str_list(parser, value, call_ng_flags_str_ht, &out->codec_except);
