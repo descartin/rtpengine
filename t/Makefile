@@ -114,7 +114,7 @@ include ../lib/common.Makefile
 	daemon-tests-bundle daemon-tests-dtls \
 	daemon-tests-recording daemon-tests-create \
 	daemon-tests-created-subscriptions \
-	daemon-tests-dtx-dtmf
+	daemon-tests-dtx-dtmf daemon-tests-dtmf-payload-remap
 
 TESTS=		test-bitstr aes-crypt aead-aes-crypt test-const_str_hash.strhash
 ifeq ($(with_transcoding),yes)
@@ -165,7 +165,7 @@ daemon-tests: daemon-tests-main daemon-tests-jb daemon-tests-pubsub daemon-tests
 	daemon-tests-bundle daemon-tests-dtls \
 	daemon-tests-recording daemon-tests-create \
 	daemon-tests-created-subscriptions \
-	daemon-tests-dtx-dtmf
+	daemon-tests-dtx-dtmf daemon-tests-dtmf-payload-remap
 
 daemon-test-deps:	tests-preload.so
 	$(MAKE) -C ../daemon
@@ -187,6 +187,9 @@ daemon-tests-dtx:	daemon-test-deps
 
 daemon-tests-dtx-dtmf:	daemon-test-deps
 	./auto-test-helper "$@" perl -I../perl auto-daemon-tests-dtx-dtmf.pl
+
+daemon-tests-dtmf-payload-remap:	daemon-test-deps
+	./auto-test-helper "$@" perl -I../perl auto-daemon-tests-dtmf-payload-remap.pl
 
 daemon-tests-dtx-no-shift:	daemon-test-deps
 	./auto-test-helper "$@" perl -I../perl auto-daemon-tests-dtx-no-shift.pl

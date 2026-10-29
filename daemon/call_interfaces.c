@@ -1511,6 +1511,7 @@ void call_ng_flags_init(sdp_ng_flags *out, enum ng_opmode opmode) {
 	out->dtls_passive = dtls_passive_def;
 	out->el_option = rtpe_config.endpoint_learning;
 	out->tos = 256;
+	out->telephone_event_payload = -1;
 	out->delay_buffer = -1;
 	out->delete_delay = -1;
 	out->volume = 9999;
@@ -1535,6 +1536,29 @@ void call_ng_direction_flag(const ng_parser_t *parser, sdp_ng_flags *flags, pars
 }
 void call_ng_codec_flags(const ng_parser_t *parser, str *key, parser_arg value, helper_arg arg) {
 	sdp_ng_flags *out = arg.flags;
+	if (!str_cmp(key, "telephone-event-payload")) {
+		if (out->parse_error)
+			return;
+#ifndef WITH_TRANSCODING
+		out->parse_error = "telephone-event-payload requires transcoding support";
+#else
+		if (out->opmode != OP_OFFER) {
+			out->parse_error = "telephone-event-payload is only supported in offers";
+			return;
+		}
+		if (!parser->is_int(value)) {
+			out->parse_error = "telephone-event-payload must be an integer from 96 to 127";
+			return;
+		}
+		long long pt = parser->get_int(value);
+		if (pt < 96 || pt > 127) {
+			out->parse_error = "telephone-event-payload must be an integer from 96 to 127";
+			return;
+		}
+		out->telephone_event_payload = pt;
+#endif
+		return;
+	}
 	switch (__csh_lookup(key)) {
 		case CSH_LOOKUP("except"):
 			call_ng_flags_str_list(parser, value, call_ng_flags_str_ht, &out->codec_except);
@@ -2630,6 +2654,8 @@ static const char *call_offer_answer_ng(ng_command_ctx_t *ctx, const char* addr)
 	g_auto(str) sdp_out = STR_NULL;
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	if ((ret = call_ng_basic_checks(&flags)) > 0)
 		return _ng_basic_errors[ret];
@@ -2805,6 +2831,8 @@ const char *call_delete_ng(ng_command_ctx_t *ctx) {
 	const ng_parser_t *parser = ctx->parser_ctx.parser;
 
 	call_ng_process_flags(&rtpp_flags, ctx);
+	if (rtpp_flags.parse_error)
+		return rtpp_flags.parse_error;
 
 	if (!rtpp_flags.call_id.len)
 		return "No call-id in message";
@@ -3327,6 +3355,8 @@ static const char *call_recording_common_ng(ng_command_ctx_t *ctx,
 	const ng_parser_t *parser = ctx->parser_ctx.parser;
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	if (!parser->dict_get_str(input, "call-id", &flags.call_id))
 		return "No call-id in message";
@@ -3457,6 +3487,8 @@ static const char *media_block_match(call_t **call, struct call_monologue **mono
 	*monologue = NULL;
 
 	call_ng_process_flags(flags, ctx);
+	if (flags->parse_error)
+		return flags->parse_error;
 
 	if (!flags->call_id.s)
 		return "No call-id in message";
@@ -3486,6 +3518,8 @@ static const char *medias_match(call_t **call, medias_q *medias,
 		sdp_ng_flags *flags, ng_command_ctx_t *ctx)
 {
 	call_ng_process_flags(flags, ctx);
+	if (flags->parse_error)
+		return flags->parse_error;
 
 	if (!flags->call_id.s)
 		return "No call-id in message";
@@ -4150,6 +4184,8 @@ const char *call_publish_ng(ng_command_ctx_t *ctx, const char *addr) {
 	char rand_from_tag[65];
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	if (!flags.sdp.len)
 		return "No SDP body in message";
@@ -4331,6 +4367,8 @@ const char *call_subscribe_answer_ng(ng_command_ctx_t *ctx) {
 	g_autoptr(call_t) call = NULL;
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	if (!flags.call_id.s)
 		return "No call-id in message";
@@ -4377,6 +4415,8 @@ const char *call_unsubscribe_ng(ng_command_ctx_t *ctx) {
 	g_autoptr(call_t) call = NULL;
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	if (!flags.call_id.s)
 		return "No call-id in message";
@@ -4417,6 +4457,8 @@ static const char *call_inject_ng(ng_command_ctx_t *ctx, bool start) {
 	const ng_parser_t *parser = ctx->parser_ctx.parser;
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	str source_call_id = STR_NULL;
 	str source_tag = STR_NULL;
@@ -4553,6 +4595,8 @@ const char *call_transform_ng(ng_command_ctx_t *ctx) {
 	 */
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	if (flags.instance.len && !str_cmp_str(&rtpe_instance_id, &flags.instance))
 		return "Transform loop detected";
@@ -4601,6 +4645,8 @@ const char *call_create_ng(ng_command_ctx_t *ctx) {
 	g_auto(str) sdp = STR_NULL;
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	if (!flags.call_id.len)
 		flags.call_id = STR_LEN(rand_hex_str(rand_call_id, 32), 64);
@@ -4635,6 +4681,8 @@ const char *call_create_answer_ng(ng_command_ctx_t *ctx) {
 	g_auto(sdp_streams_q) streams = TYPED_GQUEUE_INIT;
 
 	call_ng_process_flags(&flags, ctx);
+	if (flags.parse_error)
+		return flags.parse_error;
 
 	enum basic_errors ret;
 	if ((ret = call_ng_basic_checks(&flags)) > 0)
