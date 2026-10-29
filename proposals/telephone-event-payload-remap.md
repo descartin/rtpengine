@@ -1,7 +1,10 @@
 # Draft: explicit telephone-event payload preference
 
-**Local prototype for upstream review, not production validated.** No issue,
-pull request, remote branch, or maintainer message has been published.
+**Prototype for upstream review, not production validated.** Published in the
+[feature/dtmf-payload-remap branch](https://github.com/descartin/rtpengine/tree/feature/dtmf-payload-remap)
+of the public `descartin/rtpengine` fork. No upstream issue, pull request, or
+maintainer message has been published. Full compilation and runtime tests remain
+blocked/not run as documented below.
 
 ## Intended PR title
 
