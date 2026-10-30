@@ -1546,11 +1546,8 @@ void call_ng_codec_flags(const ng_parser_t *parser, str *key, parser_arg value, 
 			out->parse_error = "telephone-event-payload is only supported in offers";
 			return;
 		}
-		if (!parser->is_int(value)) {
-			out->parse_error = "telephone-event-payload must be an integer from 96 to 127";
-			return;
-		}
-		long long pt = parser->get_int(value);
+		// Flags strings (e.g. Kamailio's, or rtpp-flags) can only carry the PT as a string
+		long long pt = parser->get_int_str(value, -1);
 		if (pt < 96 || pt > 127) {
 			out->parse_error = "telephone-event-payload must be an integer from 96 to 127";
 			return;
@@ -1938,6 +1935,11 @@ void call_ng_main_flags(const ng_parser_t *parser, str *key, parser_arg value, h
 			break;
 		case CSH_LOOKUP("codec"):
 			parser->dict_iter(parser, value, call_ng_codec_flags, out);
+			break;
+		case CSH_LOOKUP("codec-telephone-event-payload"):
+			// Alias for clients that build the request from a flags string and
+			// can't create the `codec` dictionary, e.g. Kamailio's rtpengine_offer()
+			call_ng_codec_flags(parser, &STR_CONST("telephone-event-payload"), value, out);
 			break;
 		case CSH_LOOKUP("command"):
 			break;

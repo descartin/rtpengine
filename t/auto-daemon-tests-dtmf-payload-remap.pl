@@ -178,4 +178,38 @@ like($resp, qr/telephone-event-payload is only supported in offers/,
 $resp = rtpe_raw_req({command => 'query', 'call-id' => cid()});
 is($resp->{result}, 'ok', 'rejected delete leaves established call intact');
 
+# Flags-string clients (e.g. Kamailio's rtpengine_offer()) send the PT as a string,
+# through the top-level alias. \'101' makes Bencode send a string, not an integer.
+for my $case (
+	['string in codec dictionary', {codec => {'telephone-event-payload' => \'101'}}],
+	['top-level alias', {'codec-telephone-event-payload' => \'101'}],
+	['rtpp-flags alias', {'rtpp-flags' => 'codec-telephone-event-payload=101'}],
+) {
+	my ($name, $options) = @$case;
+	new_call;
+	my $resp = send_offer($name, [[0, 'PCMU/8000'], [96, 'telephone-event/8000']], $options);
+	check_codecs($name, $resp->{sdp}, [0, 'PCMU/8000'], [101, 'telephone-event/8000']);
+}
+
+new_call;
+send_offer('alias rejected in answer', [[0, 'PCMU/8000'], [96, 'telephone-event/8000']], {});
+$resp = rtpe_raw_req({
+	command => 'answer', 'call-id' => cid(), 'from-tag' => ft(), 'to-tag' => tt(),
+	sdp => sdp(4002, [0, 'PCMU/8000'], [96, 'telephone-event/8000']),
+	'codec-telephone-event-payload' => \'101',
+});
+like($resp, qr/telephone-event-payload is only supported in offers/,
+	'top-level alias is offer-only too');
+
+for my $bad ('95', '128', '101abc', 'not-an-integer') {
+	new_call;
+	my $resp = rtpe_raw_req({
+		command => 'offer', 'call-id' => cid(), 'from-tag' => ft(),
+		sdp => sdp(4000, [0, 'PCMU/8000'], [96, 'telephone-event/8000']),
+		'codec-telephone-event-payload' => \$bad,
+	});
+	like($resp, qr/telephone-event-payload must be an integer from 96 to 127/,
+		"invalid alias value '$bad' rejected");
+}
+
 done_testing();

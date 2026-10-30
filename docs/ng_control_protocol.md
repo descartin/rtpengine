@@ -1419,10 +1419,18 @@ The following keys are understood:
 
 	An optional outgoing-offer payload-type preference for RFC 4733 (RFC 2833)
 	`telephone-event`. Supply an integer from 96 through 127 in the `codec`
-	dictionary, for example `"codec": {"telephone-event-payload": 101}`.
+	dictionary, for example `"codec": {"telephone-event-payload": 101}`. A
+	string holding the number, such as `"101"`, is accepted as well.
 	This option requires a transcoding-enabled build and is supported only in
 	`offer` requests; invalid types/ranges and use in other commands return an
-	error. There is currently no `codec-` flags-list alias.
+	error.
+
+	Clients that build the request from a flags string can't create the `codec`
+	dictionary. For them, the top-level key `codec-telephone-event-payload` is
+	accepted as an alias. For example, Kamailio's
+	`rtpengine_offer("... codec-telephone-event-payload=101")` sends
+	`"codec-telephone-event-payload": "101"`. The same `key=value` form works
+	inside `rtpp-flags`. The option is still not accepted in the `flags` list.
 
 	Only an existing, single telephone-event codec with a compatible input
 	codec at the same clock rate is renumbered. Its clock rate and format
