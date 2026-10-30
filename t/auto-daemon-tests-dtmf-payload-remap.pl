@@ -149,8 +149,8 @@ $resp = rtpe_raw_req({
 	sdp => sdp(4002, [0, 'PCMU/8000'], [96, 'telephone-event/8000']),
 	codec => {'telephone-event-payload' => 101},
 });
-is($resp->{result}, 'error', 'valid remap PT is not accepted on an answer');
-like($resp->{'error-reason'}, qr/telephone-event-payload is only supported in offers/,
+like($resp, qr/^error:/, 'valid remap PT is not accepted on an answer');
+like($resp, qr/telephone-event-payload is only supported in offers/,
 	'answer option error explains offer-only scope');
 
 for my $bad (-1, 0, 95, 128, 'not-an-integer', [], {}) {
@@ -160,8 +160,8 @@ for my $bad (-1, 0, 95, 128, 'not-an-integer', [], {}) {
 		sdp => sdp(4000, [0, 'PCMU/8000'], [96, 'telephone-event/8000']),
 		codec => {'telephone-event-payload' => $bad},
 	});
-	is($resp->{result}, 'error', 'invalid remap PT rejected');
-	like($resp->{'error-reason'}, qr/telephone-event-payload must be an integer from 96 to 127/,
+	like($resp, qr/^error:/, 'invalid remap PT rejected');
+	like($resp, qr/telephone-event-payload must be an integer from 96 to 127/,
 		'invalid remap PT has actionable error');
 }
 
@@ -172,8 +172,8 @@ $resp = rtpe_raw_req({
 	command => 'delete', 'call-id' => cid(),
 	codec => {'telephone-event-payload' => 101},
 });
-is($resp->{result}, 'error', 'offer-only option rejects delete');
-like($resp->{'error-reason'}, qr/telephone-event-payload is only supported in offers/,
+like($resp, qr/^error:/, 'offer-only option rejects delete');
+like($resp, qr/telephone-event-payload is only supported in offers/,
 	'delete propagates callback error');
 $resp = rtpe_raw_req({command => 'query', 'call-id' => cid()});
 is($resp->{result}, 'ok', 'rejected delete leaves established call intact');
