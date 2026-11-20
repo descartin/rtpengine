@@ -382,9 +382,7 @@ static const char *call_ng_flags_list(const ng_parser_t *parser, parser_arg list
 			ilog(LOG_DEBUG, "Ignoring non-list non-string value");
 		return NULL;
 	}
-	parser->list_iter(parser, list, str_callback, item_callback, arg);
-
-	return NULL;
+	return parser->list_iter(parser, list, str_callback, item_callback, arg);
 }
 static const char *call_ng_flags_str_list(const ng_parser_t *parser, parser_arg list,
 		const char *(*callback)(str *, unsigned int, helper_arg), helper_arg arg)

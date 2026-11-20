@@ -218,26 +218,43 @@ for my $flags ('codec-telephone-event-payload=101abc', 'codec-telephone-event-pa
 check_ignored_offer('missing flags-list payload ignored', {flags => ['codec-telephone-event-payload']});
 
 # Missing values must not bypass the command scope checks, especially delete.
-for my $command ('answer', 'delete') {
-	for my $options (
-		{'rtpp-flags' => 'codec-telephone-event-payload=101'},
-		{'rtpp-flags' => 'codec-telephone-event-payload='},
-		{'rtpp-flags' => 'codec-telephone-event-payload'},
-		{flags => ['codec-telephone-event-payload']},
-	) {
-		new_call;
-		send_offer('rtpp-flags rejection setup', [[0, 'PCMU/8000'], [96, 'telephone-event/8000']], {});
-		my $resp = rtpe_raw_req({
-			command => $command, 'call-id' => cid(), 'from-tag' => ft(), 'to-tag' => tt(),
-			sdp => sdp(4002, [0, 'PCMU/8000'], [96, 'telephone-event/8000']), %$options,
-		});
-		like($resp, qr/^error:/, "$command rejects out-of-scope preference");
-		like($resp, qr/telephone-event-payload is only supported in offer, subscribe-request and create/,
-			"$command propagates scope error, including missing values");
-		$resp = rtpe_raw_req({command => 'query', 'call-id' => cid()});
-		is($resp->{result}, 'ok', "$command rejection leaves established call intact");
+for my $json (0, 1) {
+	use_json($json);
+	my $format = $json ? 'JSON' : 'Bencode';
+	check_ignored_offer("$format missing flags-list payload ignored",
+		{flags => ['trust-address', 'codec-telephone-event-payload']});
+	for my $command ('answer', 'delete') {
+		for my $options (
+			{'rtpp-flags' => 'codec-telephone-event-payload=101'},
+			{'rtpp-flags' => 'codec-telephone-event-payload='},
+			{'rtpp-flags' => 'codec-telephone-event-payload'},
+			{flags => ['codec-telephone-event-payload']},
+			{flags => ['trust-address', 'codec-telephone-event-payload']},
+			{flags => ['codec-telephone-event-payload', 'trust-address']},
+			{flags => 'codec-telephone-event-payload'},
+		) {
+			new_call;
+			send_offer('rtpp-flags rejection setup', [[0, 'PCMU/8000'], [96, 'telephone-event/8000']], {});
+			my $resp = rtpe_raw_req({
+				command => $command, 'call-id' => cid(), %$options,
+				# Delete the whole call immediately if the scope error is lost:
+				# neither tag mismatch nor delayed deletion may mask the bug.
+				($command eq 'delete' ? ('delete delay' => 0) : (
+					'from-tag' => ft(), 'to-tag' => tt(),
+					sdp => sdp(4002, [0, 'PCMU/8000'], [96, 'telephone-event/8000']),
+				)),
+			});
+			like($resp, qr/^error:/, "$format $command rejects out-of-scope preference");
+			like($resp, qr/telephone-event-payload is only supported in offer, subscribe-request and create/,
+				"$format $command propagates scope error, including missing values");
+			$resp = rtpe_raw_req({command => 'query', 'call-id' => cid()});
+			ok(ref($resp) eq 'HASH' && $resp->{result} eq 'ok'
+				&& exists($resp->{tags}{ft()}),
+				"$format $command rejection preserves the original call tag");
+		}
 	}
 }
+use_json(0);
 
 # Exercise both new command paths through their answers and RTP forwarding.
 for my $source_kind ('publish', 'create') {
